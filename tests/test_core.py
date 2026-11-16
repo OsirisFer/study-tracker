@@ -58,8 +58,11 @@ class ClassifierTest(unittest.TestCase):
         self.assertEqual(self.tab("https://chatgpt.com/c/2", "Cómo resolver esto").subject, "GAL1")  # vía LLM
         self.assertEqual(self.tab("https://chatgpt.com/c/3", "Receta de pizza").kind, DISTRACTION)
 
-    def test_llm_pending_is_neutral(self):
-        self.assertEqual(self.tab("https://chatgpt.com/c/4", "Algo sin respuesta aún").kind, NEUTRAL)
+    def test_llm_pending_does_not_count(self):
+        self.assertEqual(self.tab("https://chatgpt.com/c/4", "Algo sin respuesta aún").kind, DISTRACTION)
+
+    def test_dashboard_is_neutral(self):
+        self.assertEqual(self.tab("http://127.0.0.1:8765/", "Study Tracker").kind, NEUTRAL)
 
     def test_most_specific_domain_wins(self):
         # gemini.google.com es "distraction" por defecto; google.com sería "neutral"

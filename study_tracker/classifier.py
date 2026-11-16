@@ -212,8 +212,8 @@ class Classifier:
         if not (self.llm and self.llm.available() and title):
             return Classification(fallback, None, f"{site}: {shown}")
         verdict = self.llm.classify(clean_title(title))
-        if verdict is None:  # el modelo todavía está pensando
-            return Classification(NEUTRAL, None, f"{site}: {shown} (analizando…)")
+        if verdict is None:  # el modelo todavía está pensando: no contar hasta saber
+            return Classification(fallback, None, f"{site}: {shown} (analizando…)")
         if verdict != "NONE":
             return Classification(STUDY, verdict, f"{site}: {shown}")
         return Classification(fallback, None, f"{site}: {shown}")

@@ -128,6 +128,8 @@ rules:
     google.com.uy: neutral
     wikipedia.org: neutral
     stackoverflow.com: neutral
+    127.0.0.1: neutral          # el panel de Study Tracker
+    localhost: neutral
   # Sitios que no están en ninguna lista y cuyo título no es de estudio.
   unknown_domain_fallback: distraction
   # Títulos "vacíos" de chats nuevos: cuentan si venís de material de estudio.
