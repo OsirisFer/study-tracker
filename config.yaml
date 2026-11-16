@@ -1,0 +1,140 @@
+# ─────────────────────────────────────────────────────────────
+#  Study Tracker — configuración
+#  Editá este archivo y reiniciá la app para aplicar cambios.
+# ─────────────────────────────────────────────────────────────
+
+start_date: 2026-11-16
+
+# El "día de estudio" arranca a esta hora: si estudiás a la 1 AM,
+# cuenta para el día anterior.
+day_start_hour: 4
+
+subjects:
+  GAL1:
+    name: "GAL 1"
+    emoji: "📐"
+    description: "Geometría y Álgebra Lineal: matrices, sistemas de ecuaciones, determinantes, espacios vectoriales, bases, transformaciones lineales, autovalores, rectas y planos en R3"
+    keywords: [gal, "gal 1", "gal1", algebra lineal, linear algebra, geometria analitica,
+      matriz, matrices, determinante*, autovalor*, autovector*, valores propios, vectores propios,
+      eigen*, diagonaliz*, subespacio*, espacio vectorial, espacios vectoriales, dimension,
+      rango, nucleo, transformacion lineal, transformaciones lineales, sistema de ecuaciones,
+      sistemas de ecuaciones, escaleriz*, eliminacion de gauss, gauss-jordan,
+      independencia lineal, linealmente independiente*, combinacion lineal, cambio de base,
+      base ortonormal, producto interno, ortogonal*, gram-schmidt, producto vectorial,
+      producto escalar, producto mixto, ecuacion de la recta, ecuacion del plano, rectas y planos,
+      matriz inversa, matriz asociada, polinomio caracteristico, cramer]
+  PROG3:
+    name: "Programación 3"
+    emoji: "💻"
+    description: "algoritmos y estructuras de datos: complejidad, ordenamiento, grafos, greedy, programación dinámica, backtracking, divide y vencerás"
+    keywords: [prog3, "prog 3", programacion 3, grafo*, dijkstra, bfs, dfs, arbol, arboles,
+      complejidad, algoritmo*, greedy, voraz, voraces, programacion dinamica, dynamic programming,
+      divide and conquer, divide y venceras, backtracking, heap, heaps, cola de prioridad,
+      hashing, tabla de hash, ordenamiento, quicksort, mergesort, heapsort, recursion, recursiv*,
+      recurrencia*, teorema maestro, master theorem, big o, notacion o, np-completo, np completo,
+      prim, kruskal, floyd, warshall, bellman, flujo maximo, max flow, orden topologico,
+      topological, componentes conexas, arbol de cubrimiento, mst, camino minimo, caminos minimos,
+      memoizacion, ramificacion y poda, branch and bound]
+  CDIVV:
+    name: "CDIVV"
+    emoji: "∫"
+    description: "Cálculo Diferencial e Integral en Varias Variables: límites, derivadas parciales, gradiente, extremos, Lagrange, integrales múltiples, integrales de línea y superficie, Green, Stokes"
+    keywords: [cdivv, calculo diferencial, calculo integral, varias variables, multivariable,
+      multivariado, integral*, derivada parcial, derivadas parciales, gradiente, diferenciab*,
+      lagrange, multiplicadores, jacobian*, hessian*, taylor, extremos, maximos y minimos,
+      punto silla, punto critico, puntos criticos, limite*, continuidad, fubini, cambio de variable*,
+      coordenadas polares, polares, esfericas, cilindricas, green, stokes, teorema de gauss,
+      divergencia, rotor, campo vectorial, campos vectoriales, integral de linea,
+      integral de superficie, curvas de nivel, derivada direccional, regla de la cadena,
+      plano tangente, funcion implicita, teorema de la funcion implicita]
+
+exams:
+  GAL1: 2026-12-10
+  CDIVV: 2026-12-17
+  PROG3: 2026-12-22
+
+daily_hours:
+  weekday: 10        # lunes a sábado
+  sunday: 5
+  exam_day: 4        # el día que rendís un examen
+
+# Cada fase aplica hasta el día ANTERIOR a "until".
+# El reparto se escala solo: el domingo (5 h) queda 2 / 2 / 1.
+# El ORDEN del split es el orden en que se estudian las materias en el día.
+phases:
+  - until: 2026-12-10
+    split: { GAL1: 4, PROG3: 4, CDIVV: 2 }
+  - until: 2026-12-17
+    split: { CDIVV: 5, PROG3: 5 }   # CDIVV primero: es el examen más cercano
+  - until: 2026-12-22
+    split: { PROG3: 10 }
+
+# Al completar las horas de una materia, pasar sola a la siguiente.
+auto_switch_on_goal: true
+
+pomodoro:
+  enabled: true
+  focus_minutes: 50
+  break_minutes: 10
+
+# Si dejaste el material de estudio hace menos de esto, una página "neutral"
+# (Finder, buscador, ChatGPT sin título aún...) sigue contando.
+context_window_seconds: 300
+
+# Segundos de distracción seguida antes de avisarte con una notificación.
+distraction_notify_after: 15
+
+camera:
+  enabled: true
+  device_index: 0
+  fps: 3
+  absent_after: 30          # sin cara ni persona → AUSENTE
+  looking_away_after: 20    # cabeza girada → DISTRAÍDO
+  phone_after: 8            # celular a la vista → DISTRAÍDO
+  yaw_threshold_deg: 35     # cuánto girar la cabeza para considerarlo "mirar al costado"
+  phone_detection: true
+  phone_min_score: 0.5
+
+# Sin cámara: si no tocás teclado/mouse por este tiempo, se considera ausencia.
+idle_limit_seconds: 300
+
+# Modelo local de Ollama (gratis, offline) para clasificar títulos ambiguos
+# (ChatGPT, YouTube, sitios desconocidos). Si Ollama no está corriendo,
+# se usan solo las palabras clave.
+llm:
+  enabled: true
+  model: "qwen2.5:3b"
+  url: "http://127.0.0.1:11434"
+
+server_port: 8765
+
+rules:
+  browsers: ["Google Chrome"]
+  study_domains: [eva.fing.edu.uy, open.fing.edu.uy, fing.edu.uy, geogebra.org,
+    wolframalpha.com, symbolab.com, desmos.com, overleaf.com, visualgo.net,
+    cs.usfca.edu, onlinegdb.com, replit.com, github.com, cppreference.com, leetcode.com]
+  distraction_domains: [instagram.com, facebook.com, x.com, twitter.com, tiktok.com,
+    netflix.com, twitch.tv, reddit.com, web.whatsapp.com, discord.com, primevideo.com,
+    disneyplus.com, max.com, mercadolibre.com.uy, pinterest.com, kick.com, telegram.org]
+  # Se decide por el título de la pestaña. Valor = qué hacer si el título NO es de estudio.
+  ambiguous_domains:
+    chatgpt.com: distraction
+    chat.openai.com: distraction
+    claude.ai: distraction
+    gemini.google.com: distraction
+    perplexity.ai: distraction
+    youtube.com: distraction
+    google.com: neutral
+    google.com.uy: neutral
+    wikipedia.org: neutral
+    stackoverflow.com: neutral
+  # Sitios que no están en ninguna lista y cuyo título no es de estudio.
+  unknown_domain_fallback: distraction
+  # Títulos "vacíos" de chats nuevos: cuentan si venís de material de estudio.
+  generic_titles: [chatgpt, nuevo chat, new chat, claude, gemini, google gemini, perplexity]
+  study_apps: [Preview, Vista Previa, Code, Visual Studio Code, Cursor, IntelliJ IDEA, CLion,
+    PyCharm, Terminal, iTerm2, Xcode, GoodNotes, Notability, Skim, Obsidian, GeoGebra,
+    Grapher, Calculator, Calculadora, Anki, Octave, MATLAB]
+  distraction_apps: [WhatsApp, Discord, Telegram, Messages, Mensajes, Steam, Spotify,
+    FaceTime, Instagram, TV, Music, Música, Netflix]
+  away_apps: [loginwindow, ScreenSaverEngine]

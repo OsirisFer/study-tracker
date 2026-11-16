@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Study Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --text: #1d2330; --muted: #6b7280; --line: #e5e7eb;
+    --study: #16a34a; --distracted: #dc2626; --away: #f59e0b; --break: #3b82f6; --idle: #9ca3af;
+    --s1: #6366f1; --s2: #0ea5e9; --s3: #f97316;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0f1218; --card: #171b23; --text: #e6e8ec; --muted: #9aa3b2; --line: #262c38; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 15px; margin: 0 0 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); margin-top: 16px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+  .wide { grid-column: 1 / -1; }
+  #status { display: flex; align-items: center; gap: 14px; }
+  #dot { width: 16px; height: 16px; border-radius: 50%; background: var(--idle); flex: none; }
+  #state { font-size: 20px; font-weight: 700; }
+  #reason { color: var(--muted); word-break: break-word; }
+  .meta { color: var(--muted); font-size: 13px; margin-top: 6px; }
+  .subj { margin: 12px 0; }
+  .subj .row { display: flex; justify-content: space-between; font-weight: 600; }
+  .bar { height: 10px; background: var(--line); border-radius: 6px; overflow: hidden; margin-top: 6px; }
+  .bar > div { height: 100%; border-radius: 6px; transition: width .5s; }
+  .exams { display: flex; gap: 12px; flex-wrap: wrap; }
+  .exam { flex: 1 1 120px; border: 1px solid var(--line); border-radius: 12px; padding: 12px; text-align: center; }
+  .exam .n { font-size: 30px; font-weight: 800; }
+  table { width: 100%; border-collapse: collapse; }
+  td, th { padding: 8px 4px; border-bottom: 1px solid var(--line); text-align: left; }
+  th { color: var(--muted); font-weight: 600; font-size: 13px; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .chart { position: relative; height: 280px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>📚 Study Tracker</h1>
+  <div class="meta" id="today-label"></div>
+
+  <div class="grid">
+    <section class="card wide">
+      <div id="status"><div id="dot"></div><div><div id="state">…</div><div id="reason"></div></div></div>
+      <div class="meta" id="status-meta"></div>
+    </section>
+
+    <section class="card"><h2>Hoy</h2><div id="today"></div></section>
+    <section class="card"><h2>Exámenes</h2><div class="exams" id="exams"></div></section>
+
+    <section class="card wide"><h2>Horas por día</h2><div class="chart"><canvas id="history"></canvas></div></section>
+
+    <section class="card"><h2>Plan vs. real (acumulado)</h2>
+      <table><thead><tr><th>Materia</th><th class="num">Plan</th><th class="num">Real</th><th class="num">Dif.</th></tr></thead>
+      <tbody id="cumulative"></tbody></table></section>
+
+    <section class="card"><h2>Distracciones (últimos 7 días)</h2>
+      <table><thead><tr><th>Motivo</th><th class="num">Min</th><th class="num">Veces</th></tr></thead>
+      <tbody id="distractions"></tbody></table></section>
+  </div>
+</main>
+
+<script>
+const STATE = {
+  STUDYING: ["Estudiando", "--study"], DISTRACTED: ["Distraído — tiempo pausado", "--distracted"],
+  AWAY: ["Ausente", "--away"], BREAK: ["Descanso", "--break"], PAUSED: ["En pausa", "--idle"],
+  IDLE: ["Sin materia elegida", "--idle"],
+};
+const CAMERA = { ok: "te veo 👀", absent: "no te veo", looking_away: "mirando a otro lado",
+  phone: "celular 📱", off: "apagada", unavailable: "no disponible", starting: "iniciando…" };
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const color = i => css(["--s1", "--s2", "--s3"][i % 3]);
+const hm = h => { const m = Math.round(h * 60); return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`; };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+let chart, codes = [];
+
+async function refreshStatus() {
+  try {
+    const s = await (await fetch("/api/status")).json();
+    const [label, v] = STATE[s.state] || [s.state, "--idle"];
+    document.getElementById("dot").style.background = css(v);
+    document.getElementById("state").textContent = `${label} · ${s.subject_name}`;
+    document.getElementById("reason").textContent = s.reason;
+    let meta = `Cámara: ${CAMERA[s.camera] || s.camera} · Pestaña vía: ${s.source}`;
+    if (s.state === "BREAK") meta += ` · Quedan ${Math.ceil(s.break_left / 60)} min de descanso`;
+    else meta += ` · Pomodoro: ${Math.floor(s.focus_secs / 60)} min`;
+    document.getElementById("status-meta").textContent = meta;
+    renderToday(s.targets, Object.fromEntries(Object.entries(s.today).map(([k, v]) => [k, v / 3600])));
+  } catch { document.getElementById("state").textContent = "La app no está corriendo"; }
+}
+
+let names = {}, emojis = {};
+function renderToday(targets, totals) {
+  const el = document.getElementById("today");
+  const keys = Object.keys(targets);
+  if (!keys.length) { el.innerHTML = "<p class='meta'>No hay plan para hoy.</p>"; return; }
+  el.innerHTML = keys.map(c => {
+    const done = totals[c] || 0, t = targets[c], pct = Math.min(100, done / t * 100);
+    return `<div class="subj"><div class="row"><span>${emojis[c] || ""} ${esc(names[c] || c)}</span>
+      <span>${hm(done)} / ${hm(t)}${done >= t ? " ✅" : ""}</span></div>
+      <div class="bar"><div style="width:${pct}%;background:${color(codes.indexOf(c))}"></div></div></div>`;
+  }).join("");
+}
+
+async function refreshStats() {
+  const d = await (await fetch("/api/stats")).json();
+  names = d.names; emojis = d.emojis; codes = Object.keys(d.names);
+  document.getElementById("today-label").textContent =
+    new Date(d.today.day + "T12:00").toLocaleDateString("es-UY", { weekday: "long", day: "numeric", month: "long" });
+
+  document.getElementById("exams").innerHTML = d.exams.map(e => `<div class="exam">
+    <div class="n">${e.days_left}</div><div>${e.days_left === 1 ? "día" : "días"}</div>
+    <div class="meta">${esc(e.name)} · ${e.date.slice(8)}/${e.date.slice(5, 7)}</div></div>`).join("")
+    || "<p class='meta'>¡Terminaste los exámenes! 🎉</p>";
+
+  document.getElementById("cumulative").innerHTML = codes.map(c => {
+    const { planned, actual } = d.cumulative[c], diff = actual - planned;
+    return `<tr><td>${emojis[c]} ${esc(names[c])}</td><td class="num">${planned}h</td>
+      <td class="num">${actual}h</td><td class="num" style="color:${css(diff >= 0 ? "--study" : "--distracted")}">${diff >= 0 ? "+" : ""}${diff.toFixed(1)}h</td></tr>`;
+  }).join("");
+
+  document.getElementById("distractions").innerHTML = d.distractions.map(x =>
+    `<tr><td>${esc(x.reason)}</td><td class="num">${x.minutes}</td><td class="num">${x.times}</td></tr>`).join("")
+    || "<tr><td colspan='3' class='meta'>Sin distracciones registradas 💪</td></tr>";
+
+  const labels = d.history.map(h => h.day.slice(8) + "/" + h.day.slice(5, 7));
+  const datasets = codes.map((c, i) => ({
+    label: names[c], data: d.history.map(h => h.hours[c] || 0), backgroundColor: color(i), stack: "real",
+  }));
+  datasets.push({ type: "line", label: "Objetivo", data: d.history.map(h => Object.values(h.target).reduce((a, b) => a + b, 0)),
+    borderColor: css("--muted"), borderDash: [6, 4], pointRadius: 0, fill: false });
+  if (chart) { chart.data.labels = labels; chart.data.datasets = datasets; chart.update(); return; }
+  Chart.defaults.color = css("--muted");
+  chart = new Chart(document.getElementById("history"), {
+    type: "bar", data: { labels, datasets },
+    options: { maintainAspectRatio: false, scales: { x: { stacked: true, grid: { display: false } },
+      y: { stacked: true, beginAtZero: true, title: { display: true, text: "horas" }, grid: { color: css("--line") } } } },
+  });
+}
+
+refreshStats().then(refreshStatus);
+setInterval(refreshStatus, 2000);
+setInterval(refreshStats, 30000);
+</script>
+</body>
+</html>
