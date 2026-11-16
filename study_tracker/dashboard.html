@@ -40,6 +40,12 @@
   th { color: var(--muted); font-weight: 600; font-size: 13px; }
   td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   .chart { position: relative; height: 280px; }
+  .cam-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .cam-head h2 { margin: 0; }
+  #cam { display: block; width: 100%; max-width: 640px; margin: 12px auto 0; border-radius: 10px; background: #000; }
+  #cam[hidden] { display: none; }
+  button { font: inherit; padding: 6px 14px; border-radius: 8px; border: 1px solid var(--line);
+           background: var(--bg); color: var(--text); cursor: pointer; }
 </style>
 </head>
 <body>
@@ -51,6 +57,13 @@
     <section class="card wide">
       <div id="status"><div id="dot"></div><div><div id="state">…</div><div id="reason"></div></div></div>
       <div class="meta" id="status-meta"></div>
+    </section>
+
+    <section class="card wide">
+      <div class="cam-head"><h2>Cámara</h2><button id="cam-btn" type="button">Mostrar cámara</button></div>
+      <img id="cam" alt="Vista de la cámara con detecciones" hidden>
+      <p class="meta" id="cam-help">Se genera solo mientras la mirás. Recuadro verde = de frente, naranja = girando,
+        rojo = distracción. La flecha muestra hacia dónde apunta tu cabeza.</p>
     </section>
 
     <section class="card"><h2>Hoy</h2><div id="today"></div></section>
@@ -145,6 +158,17 @@ async function refreshStats() {
       y: { stacked: true, beginAtZero: true, title: { display: true, text: "horas" }, grid: { color: css("--line") } } } },
   });
 }
+
+// Cámara: poner src abre el stream MJPEG; quitarlo corta la conexión y la app deja de generar imágenes
+const camImg = document.getElementById("cam"), camBtn = document.getElementById("cam-btn");
+function setCamera(on) {
+  camImg.hidden = !on;
+  camImg.src = on ? "/camera.mjpg?t=" + Date.now() : "";
+  camBtn.textContent = on ? "Ocultar cámara" : "Mostrar cámara";
+}
+camBtn.onclick = () => setCamera(camImg.hidden);
+camImg.onerror = () => { if (!camImg.hidden) { setCamera(false);
+  document.getElementById("cam-help").textContent = "La cámara está apagada o no disponible (activala desde el menú)."; } };
 
 refreshStats().then(refreshStatus);
 setInterval(refreshStatus, 2000);

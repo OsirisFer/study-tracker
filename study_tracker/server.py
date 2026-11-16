@@ -4,9 +4,11 @@
   GET  /             panel de estadísticas
   GET  /api/status   estado actual (se consulta cada 2 s desde el panel)
   GET  /api/stats    totales, historial, plan vs. real, distracciones
+  GET  /camera.mjpg  video de la cámara con las detecciones (solo mientras lo mirás)
 """
 import json
 import threading
+import time
 from datetime import timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -98,7 +100,28 @@ def make_handler(tabs, engine_ref):
                 return self._json(build_status(engine))
             if self.path == "/api/stats":
                 return self._json(build_stats(engine))
+            if self.path == "/camera.mjpg":
+                return self._stream_camera(engine.camera)
             self._send(404, b"{}")
+
+        def _stream_camera(self, camera):
+            """MJPEG: una respuesta HTTP que nunca termina, con un JPEG tras otro.
+            Un <img src="/camera.mjpg"> lo muestra como video. Al cerrar la vista se corta."""
+            if camera is None or not camera.enabled.is_set():
+                return self._send(404, b"{}")
+            self.send_response(200)
+            self.send_header("Content-Type", "multipart/x-mixed-replace; boundary=frame")
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            try:
+                while camera.enabled.is_set():
+                    jpg = camera.preview_jpeg()
+                    if jpg:
+                        self.wfile.write(b"--frame\r\nContent-Type: image/jpeg\r\nContent-Length: "
+                                         + str(len(jpg)).encode() + b"\r\n\r\n" + jpg + b"\r\n")
+                    time.sleep(0.12)
+            except (BrokenPipeError, ConnectionResetError):
+                pass
 
     return Handler
 
