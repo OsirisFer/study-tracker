@@ -12,6 +12,7 @@ import time
 from datetime import timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import urlparse
 
 DASHBOARD = Path(__file__).with_name("dashboard.html")
 
@@ -92,6 +93,7 @@ def make_handler(tabs, engine_ref):
 
         def do_GET(self):
             engine = engine_ref()
+            self.path = urlparse(self.path).path  # ignorar ?t=... (evita la caché del navegador)
             if self.path in ("/", "/index.html"):
                 return self._send(200, DASHBOARD.read_bytes(), "text/html; charset=utf-8")
             if engine is None:
