@@ -38,7 +38,12 @@ def run_app(cfg: dict) -> None:
     tabs = TabStore()
     engine_box: list = [None]
     port = cfg.get("server_port", 8765)
-    start_server(port, tabs, lambda: engine_box[0])
+    try:
+        start_server(port, tabs, lambda: engine_box[0])
+    except OSError:
+        notify("📚 Study Tracker", "Ya está abierta (mirá el ícono en la barra de menú).")
+        print(f"Study Tracker ya está corriendo (puerto {port} ocupado).")
+        return
 
     camera = None
     if cfg["camera"].get("enabled", True):
