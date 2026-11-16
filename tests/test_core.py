@@ -186,6 +186,7 @@ class EngineTest(unittest.TestCase):
         self.camera.status = cam.CameraStatus(state=cam.PHONE)
         self.run_secs(20)
         self.assertEqual(self.engine.totals.get("GAL1", 0), 0)
+        self.assertAlmostEqual(self.engine.state_totals[DISTRACTED], 20)  # se suma el tiempo distraído
         self.assertTrue(any("pausado" in n for n in self.notes))
 
     def test_goal_switches_subject(self):
@@ -202,3 +203,29 @@ class EngineTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SyllabusTest(unittest.TestCase):
+    def setUp(self):
+        from study_tracker.syllabus import Syllabus
+        self.s = Syllabus.load(Planner(CFG))
+
+    def test_units_cover_plan_and_end_before_review(self):
+        units = self.s.units("GAL1", {})
+        self.assertEqual(len(units), 12)
+        self.assertAlmostEqual(sum(u.weight for u in units), 1.0)
+        self.assertEqual(units[0].start, date(2026, 11, 16))
+        self.assertLess(units[-1].due, self.s.review_start("GAL1"))
+        self.assertEqual(self.s.review_start("GAL1"), date(2026, 12, 7))
+        self.assertTrue(all(a.due <= b.due for a, b in zip(units, units[1:])))
+
+    def test_status(self):
+        units = self.s.units("GAL1", {})
+        late = units[2].due + __import__("datetime").timedelta(days=2)
+        done = {u.id: 1.0 for u in units[:2]}
+        self.assertEqual(self.s.summary("GAL1", done, late)["status"], "behind")
+        self.assertEqual(self.s.summary("GAL1", done, late)["delta_days"], 2)
+        all_but_last = {u.id: 1.0 for u in units[:-1]}
+        self.assertEqual(self.s.summary("GAL1", all_but_last, date(2026, 11, 20))["status"], "ahead")
+        self.assertEqual(self.s.summary("GAL1", {u.id: 1.0 for u in units}, date(2026, 11, 20))["status"], "done")
+        self.assertEqual(self.s.summary("GAL1", {}, date(2026, 11, 16))["status"], "on_track")

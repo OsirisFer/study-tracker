@@ -23,6 +23,8 @@ class MenuBarApp(rumps.App):
         self.camera = camera
 
         self.status_item = rumps.MenuItem("…")
+        self.day_item = rumps.MenuItem("…")
+        self.goals_menu, self.goal_status_items, self.unit_items = self._build_goals_menu()
         self.subject_items = {
             code: rumps.MenuItem(code, callback=self._make_select(code))
             for code in engine.planner.subjects
@@ -31,15 +33,47 @@ class MenuBarApp(rumps.App):
         self.break_item = rumps.MenuItem("Tomar descanso ahora", callback=self.on_break)
         self.camera_item = rumps.MenuItem("Cámara", callback=self.on_camera)
         self.menu = [
-            self.status_item, None,
+            self.status_item, self.day_item, None,
             *self.subject_items.values(), None,
+            self.goals_menu, None,
             self.pause_item, self.break_item, self.camera_item, None,
             rumps.MenuItem("Abrir panel de estadísticas", callback=self.on_dashboard),
             rumps.MenuItem("Instalar extensión de Chrome…", callback=self.on_extension), None,
             rumps.MenuItem("Salir", callback=self.on_quit),
         ]
+        self._ticks = 0
         self.timer = rumps.Timer(self.on_tick, 1)
         self.timer.start()
+
+    def _build_goals_menu(self):
+        parent = rumps.MenuItem("🎯 Metas por práctico")
+        status_items, unit_items = {}, {}
+        for s in self.engine.goal_summaries():
+            sub = rumps.MenuItem(f"{self.engine.planner.emoji(s['code'])} {s['name']}")
+            status_items[s["code"]] = rumps.MenuItem(s["text"])
+            sub.add(status_items[s["code"]])
+            sub.add(None)
+            for u in s["units"]:
+                item = rumps.MenuItem(u["name"], callback=self._make_toggle(s["code"], u["id"]))
+                unit_items[(s["code"], u["id"])] = item
+                sub.add(item)
+            parent.add(sub)
+        return parent, status_items, unit_items
+
+    def _make_toggle(self, code, unit):
+        def toggle(item):
+            self.engine.set_unit_done(code, unit, not item.state)
+            self.refresh_goals()
+        return toggle
+
+    def refresh_goals(self):
+        for s in self.engine.goal_summaries():
+            if item := self.goal_status_items.get(s["code"]):
+                item.title = s["text"]
+            for u in s["units"]:
+                if item := self.unit_items.get((s["code"], u["id"])):
+                    item.state = int(u["done"])
+                    item.title = f"{u['name']}   ·  meta {u['due'][8:]}/{u['due'][5:7]}"
 
     def _make_select(self, code):
         def select(_):
@@ -50,6 +84,9 @@ class MenuBarApp(rumps.App):
     def on_tick(self, _):
         self.engine.tick()
         self.refresh()
+        if self._ticks % 30 == 0:  # las metas cambian poco: no consultar la base cada segundo
+            self.refresh_goals()
+        self._ticks += 1
 
     def refresh(self):
         e, s = self.engine, self.engine.status
@@ -66,6 +103,9 @@ class MenuBarApp(rumps.App):
 
         reason = s.reason if len(s.reason) <= 60 else s.reason[:57] + "…"
         self.status_item.title = f"{DOTS[s.state]} {reason}"
+        st = e.state_totals
+        self.day_item.title = (f"Hoy: estudiado {hm(st.get(STUDYING, 0))} · "
+                               f"distraído {hm(st.get(DISTRACTED, 0))} · ausente {hm(st.get(AWAY_STATE, 0))}")
         for code, item in self.subject_items.items():
             t = e.targets.get(code)
             got = e.totals.get(code, 0)

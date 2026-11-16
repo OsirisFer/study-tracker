@@ -1,0 +1,58 @@
+# ─────────────────────────────────────────────────────────────
+#  Prácticos / unidades de cada materia y su peso relativo.
+#  Sacado de la hoja de ruta de cada curso en el EVA (noviembre 2026).
+#
+#  "weeks" = cuánto tiempo le dedica el curso (en semanas, o en % para Prog 3).
+#  La app reparte esos pesos en TUS horas de estudio hasta el examen y le pone
+#  una fecha meta a cada uno. Los últimos `review_days` días quedan para repaso.
+# ─────────────────────────────────────────────────────────────
+
+review_days:      # días antes del examen reservados para repaso y exámenes anteriores
+  GAL1: 3
+  CDIVV: 2
+  PROG3: 3
+
+GAL1:
+  source: https://eva.fing.edu.uy/course/view.php?id=1442   # GAL1 2º semestre 2026, sección "Hoja de ruta"
+  units:
+    - { id: P0,  name: "Práctico 0 · Repaso de conjuntos y funciones",            weeks: 0.5 }
+    - { id: P1,  name: "Práctico 1 · Números complejos",                          weeks: 1 }
+    - { id: P2,  name: "Práctico 2 · Sistemas de ecuaciones lineales",            weeks: 1 }
+    - { id: P3,  name: "Práctico 3 · Matrices, operaciones y aplicaciones",       weeks: 1 }
+    - { id: P4,  name: "Práctico 4 · Matrices invertibles y rango",               weeks: 1.5 }
+    - { id: P5,  name: "Práctico 5 · Determinantes",                              weeks: 1.5 }
+    - { id: P6,  name: "Práctico 6 · Rectas y planos",                            weeks: 1 }
+    - { id: P7,  name: "Práctico 7 · Producto escalar y vectorial",               weeks: 1 }
+    - { id: P8,  name: "Práctico 8 · Espacios y subespacios vectoriales",         weeks: 1 }
+    - { id: P9,  name: "Práctico 9 · Combinaciones lineales, generadores, LI",    weeks: 1.5 }
+    - { id: P10, name: "Práctico 10 · Base y dimensión",                          weeks: 1 }
+    - { id: P11, name: "Práctico 11 · Transformaciones lineales",                 weeks: 1.5 }
+
+PROG3:
+  source: https://eva.fing.edu.uy/course/view.php?id=39     # cronograma semanal + "Dedicación por capítulo"
+  units:   # weeks = % del curso según "Dedicación por capítulo" (libro Kleinberg & Tardos)
+    - { id: S1,  name: "Semana 1 · Emparejamiento estable (cap. 1)",                 weeks: 8 }
+    - { id: S2,  name: "Semana 2 · Análisis de algoritmos (cap. 2)",                 weeks: 6 }
+    - { id: S3,  name: "Semana 3 · Grafos: BFS, DFS, bipartitos (3.1–3.4)",          weeks: 7.7 }
+    - { id: S4,  name: "Semana 4 · Grafos dirigidos, DAGs, orden topológico (3.5–3.6)", weeks: 3.3 }
+    - { id: S5,  name: "Semana 5 · Greedy: scheduling (4.1–4.2)",                    weeks: 8 }
+    - { id: S6,  name: "Semana 6 · Greedy en grafos: Dijkstra, MST, Union-Find (4.4–4.6)", weeks: 8 }
+    - { id: S10, name: "Semana 10 · Dividir y conquistar (cap. 5)",                  weeks: 10 }
+    - { id: S11, name: "Semana 11 · Programación dinámica I (6.1–6.4)",              weeks: 7.5 }
+    - { id: S12, name: "Semana 12 · Programación dinámica II (6.5–6.8)",             weeks: 7.5 }
+    - { id: S13, name: "Semana 13 · Flujo en redes (cap. 7)",                        weeks: 13 }
+    - { id: S14, name: "Semana 14 · Reducciones (8.1–8.2)",                          weeks: 5.5 }
+    - { id: S15, name: "Semana 15 · NP-completos (8.3–8.4)",                         weeks: 5.5 }
+
+CDIVV:
+  source: https://eva.fing.edu.uy/course/view.php?id=1594   # guía semanal (edición 1S 2026)
+  units:
+    - { id: P1, name: "Práctico 1 · Ecuaciones diferenciales",                weeks: 1.5 }
+    - { id: P2, name: "Práctico 2 · Sucesiones",                              weeks: 1.5 }
+    - { id: P3, name: "Práctico 3 · Series",                                  weeks: 1.5 }
+    - { id: P4, name: "Práctico 4 · Integrales impropias / topología",        weeks: 1 }
+    - { id: P5, name: "Práctico 5 · Topología y funciones en Rⁿ",             weeks: 1 }
+    - { id: P6, name: "Práctico 6 · Límites y continuidad",                   weeks: 2 }
+    - { id: P7, name: "Práctico 7 · Diferenciabilidad",                       weeks: 2.5 }
+    - { id: P8, name: "Práctico 8 · Integrales múltiples I",                  weeks: 1.5 }
+    - { id: P9, name: "Práctico 9 · Integrales múltiples II",                 weeks: 1.5 }

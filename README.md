@@ -82,6 +82,17 @@ Mirar **hacia abajo** no se considera distracción, porque es escribir en papel.
 - Si la materia que detecta en pantalla no coincide con la elegida, te pregunta si cambiaste.
 - El día de estudio arranca a las 4 AM: estudiar a la 1 AM cuenta para el día anterior.
 
+## Metas por práctico
+
+`syllabus.yaml` tiene los prácticos de cada materia, sacados de la hoja de ruta del EVA. Cada uno pesa según cuánto tiempo le dedica el curso: semanas en GAL y CDIVV, y "Dedicación por capítulo" en Programación 3. La app reparte esos pesos en **tus** horas planificadas hasta el examen, dejando los últimos días para repasar, y le pone una **fecha meta** a cada práctico.
+
+Marcás cada práctico cuando lo terminás, desde el panel (casillas) o desde el menú (*🎯 Metas por práctico*). Según el primer práctico que te falte, te dice si vas:
+- **atrasado N días**: la meta de ese práctico ya pasó;
+- **al día**: estás dentro del rango del plan;
+- **adelantado N días**: según el plan, todavía no tocaba empezarlo.
+
+La barra de cada materia muestra lo que completaste y una marca con lo que el plan espera al terminar el día de hoy.
+
 ## Estructura
 
 ```
@@ -92,12 +103,14 @@ study_tracker/
   screen_monitor.py  app al frente, pestaña de Chrome, inactividad
   camera_monitor.py  MediaPipe: presencia, orientación de cabeza, celular
   engine.py          máquina de estados, conteo, pomodoro, avisos
-  storage.py         SQLite (data/study.db)
+  storage.py         SQLite (data/study.db): tiempo por estado y prácticos completados
+  syllabus.py        metas por práctico (fechas y estado atrasado/al día/adelantado)
   server.py          servidor local: extensión + panel + API
   dashboard.html     panel de estadísticas
   menubar.py         ícono en la barra de menú (rumps)
 extension/           extensión de Chrome (Manifest V3)
 config.yaml          materias, exámenes, plan, reglas, umbrales
+syllabus.yaml        prácticos de cada materia y su peso (hoja de ruta del EVA)
 ```
 
 ## Personalizar

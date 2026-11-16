@@ -4,6 +4,8 @@
   GET  /             panel de estadísticas
   GET  /api/status   estado actual (se consulta cada 2 s desde el panel)
   GET  /api/stats    totales, historial, plan vs. real, distracciones
+  GET  /api/goals    metas por práctico (plan vs. completados)
+  POST /api/progress marcar/desmarcar un práctico como completo
   GET  /camera.mjpg  video de la cámara con las detecciones (solo mientras lo mirás)
 """
 import json
@@ -62,6 +64,7 @@ def build_status(engine) -> dict:
         "focus_secs": round(s.focus_secs), "source": engine.screen.source,
         "today": {c: round(sec) for c, sec in engine.totals.items()},
         "targets": engine.targets,
+        "states_today": {k: round(v) for k, v in engine.state_totals.items()},
     }
 
 
@@ -81,15 +84,19 @@ def make_handler(tabs, engine_ref):
             self._send(200, json.dumps(data, ensure_ascii=False).encode())
 
         def do_POST(self):
-            if self.path != "/tab":
-                return self._send(404, b"{}")
             length = int(self.headers.get("Content-Length", 0))
             try:
                 data = json.loads(self.rfile.read(length) or b"{}")
-                tabs.update(str(data.get("url", "")), str(data.get("title", "")))
-                self._send(204, b"")
             except json.JSONDecodeError:
-                self._send(400, b"{}")
+                return self._send(400, b"{}")
+            if self.path == "/tab":
+                tabs.update(str(data.get("url", "")), str(data.get("title", "")))
+                return self._send(204, b"")
+            engine = engine_ref()
+            if self.path == "/api/progress" and engine:
+                engine.set_unit_done(str(data["subject"]), str(data["unit"]), bool(data.get("done")))
+                return self._json(engine.goal_summaries())
+            self._send(404, b"{}")
 
         def do_GET(self):
             engine = engine_ref()
@@ -102,6 +109,8 @@ def make_handler(tabs, engine_ref):
                 return self._json(build_status(engine))
             if self.path == "/api/stats":
                 return self._json(build_stats(engine))
+            if self.path == "/api/goals":
+                return self._json(engine.goal_summaries())
             if self.path == "/camera.mjpg":
                 return self._stream_camera(engine.camera)
             self._send(404, b"{}")

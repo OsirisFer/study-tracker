@@ -64,7 +64,7 @@ class Status:
 
 
 class Engine:
-    def __init__(self, cfg, planner, classifier, screen, camera, storage, notify, idle_fn):
+    def __init__(self, cfg, planner, classifier, screen, camera, storage, notify, idle_fn, syllabus=None):
         self.cfg = cfg
         self.planner = planner
         self.classifier = classifier
@@ -73,6 +73,7 @@ class Engine:
         self.storage = storage
         self.notify = notify
         self.idle_fn = idle_fn
+        self.syllabus = syllabus
 
         pomo = cfg.get("pomodoro", {})
         self.pomodoro = pomo.get("enabled", False)
@@ -103,12 +104,36 @@ class Engine:
     def _start_day(self, day, announce=True) -> None:
         self.day = day
         self.totals = self.storage.totals_for_day(day)
+        self.state_totals = self.storage.state_breakdown(day)
         self.targets = self.planner.targets(day)
         self.completed = {c for c, h in self.targets.items() if self.totals.get(c, 0) >= h * 3600}
         self.selected = self.planner.next_subject(day, self.totals)
         if announce and self.targets:
             plan = " · ".join(f"{self.planner.name(c)} {h:g}h" for c, h in self.targets.items())
             self.notify("☀️ Nuevo día de estudio", f"Hoy: {plan}")
+            if goals := self.goals_text():
+                self.notify("🎯 Metas", goals)
+
+    # ── metas por práctico ───────────────────────────────────
+    def goal_summaries(self) -> list[dict]:
+        if not self.syllabus:
+            return []
+        progress = self.storage.progress()
+        out = []
+        for code, exam in self.planner.exams.items():
+            if exam >= self.day and (s := self.syllabus.summary(code, progress.get(code, {}), self.day)):
+                out.append(s)
+        return out
+
+    def goals_text(self) -> str:
+        return " · ".join(f"{s['name']}: {s['text']}" for s in self.goal_summaries() if s["code"] in self.targets)
+
+    def set_unit_done(self, subject: str, unit: str, done: bool) -> None:
+        self.storage.set_progress(subject, unit, done)
+        if done and self.syllabus:
+            s = self.syllabus.summary(subject, self.storage.progress().get(subject, {}), self.day)
+            if s:
+                self.notify(f"✅ {unit} completo", f"{s['name']}: {s['text']}")
 
     # ── acciones del menú ────────────────────────────────────
     def select(self, subject: str) -> None:
@@ -161,6 +186,7 @@ class Engine:
         self._handle_distraction(state, reason, now)
         self._handle_away(state, now)
 
+        self.state_totals[state] = self.state_totals.get(state, 0) + dt
         self.storage.record(self.day, now, dt, state, self.selected, reason)
         self.status = Status(state, reason, self.selected, app, title, camera_state, cls.subject,
                              max(0.0, (self.break_until or now) - now), self.focus_secs)

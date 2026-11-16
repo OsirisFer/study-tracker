@@ -19,6 +19,12 @@ CREATE TABLE IF NOT EXISTS segments (
     reason  TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_segments_day ON segments(day);
+CREATE TABLE IF NOT EXISTS progress (
+    subject TEXT NOT NULL,
+    unit    TEXT NOT NULL,
+    done_at REAL NOT NULL,
+    PRIMARY KEY (subject, unit)
+);
 """
 
 MERGE_GAP = 5.0
@@ -90,3 +96,18 @@ class Storage:
         return self._query("SELECT reason, SUM(seconds) AS s, COUNT(*) FROM segments "
                            "WHERE day>=? AND state='DISTRACTED' GROUP BY reason ORDER BY s DESC LIMIT ?",
                            (since.isoformat(), limit))
+
+    # ── prácticos completados ────────────────────────────────
+    def progress(self) -> dict[str, dict[str, float]]:
+        out: dict[str, dict[str, float]] = {}
+        for subj, unit, ts in self._query("SELECT subject, unit, done_at FROM progress"):
+            out.setdefault(subj, {})[unit] = ts
+        return out
+
+    def set_progress(self, subject: str, unit: str, done: bool) -> None:
+        with self.lock:
+            if done:
+                self.db.execute("INSERT OR REPLACE INTO progress VALUES (?,?,?)", (subject, unit, time.time()))
+            else:
+                self.db.execute("DELETE FROM progress WHERE subject=? AND unit=?", (subject, unit))
+            self.db.commit()

@@ -22,7 +22,8 @@ subjects:
       independencia lineal, linealmente independiente*, combinacion lineal, cambio de base,
       base ortonormal, producto interno, ortogonal*, gram-schmidt, producto vectorial,
       producto escalar, producto mixto, ecuacion de la recta, ecuacion del plano, rectas y planos,
-      matriz inversa, matriz asociada, polinomio caracteristico, cramer]
+      matriz inversa, matriz asociada, polinomio caracteristico, cramer, rouche-frobenius, rouche,
+      binet, matrices elementales, numeros complejos, complejo*, forma polar, suma directa, conjuntos y funciones]
   PROG3:
     name: "Programación 3"
     emoji: "💻"
@@ -34,7 +35,9 @@ subjects:
       recurrencia*, teorema maestro, master theorem, big o, notacion o, np-completo, np completo,
       prim, kruskal, floyd, warshall, bellman, flujo maximo, max flow, orden topologico,
       topological, componentes conexas, arbol de cubrimiento, mst, camino minimo, caminos minimos,
-      memoizacion, ramificacion y poda, branch and bound]
+      memoizacion, ramificacion y poda, branch and bound, stable matching, emparejamiento estable,
+      gale-shapley, kleinberg, tardos, union-find, interval scheduling, flujo en redes, network flow,
+      ford-fulkerson, corte minimo, reduccion*, np-hard, sat, bipartito*, closest pair, inversiones]
   CDIVV:
     name: "CDIVV"
     emoji: "∫"
@@ -46,7 +49,10 @@ subjects:
       coordenadas polares, polares, esfericas, cilindricas, green, stokes, teorema de gauss,
       divergencia, rotor, campo vectorial, campos vectoriales, integral de linea,
       integral de superficie, curvas de nivel, derivada direccional, regla de la cadena,
-      plano tangente, funcion implicita, teorema de la funcion implicita]
+      plano tangente, funcion implicita, teorema de la funcion implicita, ecuaciones diferenciales,
+      ecuacion diferencial, edo, sucesion*, series, serie, convergen*, criterio de, integral impropia,
+      integrales impropias, topologia, conjunto abierto, conjunto cerrado, bolas abiertas, frontera,
+      integrales multiples, integral doble, integral triple]
 
 exams:
   GAL1: 2026-12-10

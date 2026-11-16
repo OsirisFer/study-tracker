@@ -32,6 +32,7 @@ def run_app(cfg: dict) -> None:
     from .screen_monitor import ScreenMonitor, TabStore, idle_seconds
     from .server import start_server
     from .storage import Storage
+    from .syllabus import Syllabus
 
     DATA_DIR.mkdir(exist_ok=True)
     planner = Planner(cfg)
@@ -52,12 +53,14 @@ def run_app(cfg: dict) -> None:
 
     llm = OllamaClassifier(cfg.get("llm", {}), cfg["subjects"])
     engine = Engine(cfg, planner, Classifier(cfg, llm), ScreenMonitor(tabs, cfg["rules"]["browsers"]),
-                    camera, Storage(DATA_DIR / "study.db"), notify, idle_seconds)
+                    camera, Storage(DATA_DIR / "study.db"), notify, idle_seconds, Syllabus.load(planner))
     engine_box[0] = engine
 
     if engine.targets:
         plan = " · ".join(f"{planner.name(c)} {h:g}h" for c, h in engine.targets.items())
         notify("📚 Study Tracker", f"Hoy: {plan}. Arrancás con {planner.name(engine.selected)}.")
+        if goals := engine.goals_text():
+            notify("🎯 Metas", goals, sound=None)
     print(f"Study Tracker corriendo. Panel: http://127.0.0.1:{port}/")
     MenuBarApp(engine, port, camera).run()
 
