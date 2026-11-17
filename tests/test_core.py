@@ -93,8 +93,11 @@ class PlannerTest(unittest.TestCase):
         self.p = Planner(CFG)
 
     def test_weekday_and_sunday(self):
-        self.assertEqual(self.p.targets(date(2026, 11, 16)), {"GAL1": 4, "PROG3": 4, "CDIVV": 2})
+        self.assertEqual(self.p.targets(date(2026, 11, 17)), {"GAL1": 4, "PROG3": 4, "CDIVV": 2})
         self.assertEqual(self.p.targets(date(2026, 11, 22)), {"GAL1": 2, "PROG3": 2, "CDIVV": 1})
+
+    def test_no_targets_before_start(self):
+        self.assertEqual(self.p.targets(date(2026, 11, 16)), {})
 
     def test_phase_change_after_exam(self):
         self.assertNotIn("GAL1", self.p.targets(date(2026, 12, 11)))
@@ -103,7 +106,7 @@ class PlannerTest(unittest.TestCase):
         self.assertEqual(self.p.targets(date(2026, 12, 23)), {})
 
     def test_next_subject(self):
-        d = date(2026, 11, 16)
+        d = date(2026, 11, 17)
         self.assertEqual(self.p.next_subject(d, {}), "GAL1")
         self.assertEqual(self.p.next_subject(d, {"GAL1": 4 * 3600}), "PROG3")
         self.assertIsNone(self.p.next_subject(d, {"GAL1": 4 * 3600, "PROG3": 4 * 3600, "CDIVV": 2 * 3600}))
@@ -156,7 +159,7 @@ class EngineTest(unittest.TestCase):
         planner = Planner(cfg)
         self.clock = [1_000_000.0]
         with mock.patch("study_tracker.engine.time.time", lambda: self.clock[0]):
-            mock_day = mock.patch.object(planner, "study_day", lambda now=None: date(2026, 11, 16))
+            mock_day = mock.patch.object(planner, "study_day", lambda now=None: date(2026, 11, 17))
             mock_day.start()
             self.addCleanup(mock_day.stop)
             self.engine = Engine(cfg, planner, Classifier(cfg, None), self.screen, self.camera,
@@ -198,7 +201,7 @@ class EngineTest(unittest.TestCase):
 
     def test_persisted_totals(self):
         self.run_secs(10)
-        self.assertAlmostEqual(self.storage.totals_for_day(date(2026, 11, 16))["GAL1"], 10)
+        self.assertAlmostEqual(self.storage.totals_for_day(date(2026, 11, 17))["GAL1"], 10)
 
 
 if __name__ == "__main__":
@@ -214,7 +217,7 @@ class SyllabusTest(unittest.TestCase):
         units = self.s.units("GAL1", {})
         self.assertEqual(len(units), 12)
         self.assertAlmostEqual(sum(u.weight for u in units), 1.0)
-        self.assertEqual(units[0].start, date(2026, 11, 16))
+        self.assertEqual(units[0].start, date(2026, 11, 17))
         self.assertLess(units[-1].due, self.s.review_start("GAL1"))
         self.assertEqual(self.s.review_start("GAL1"), date(2026, 12, 7))
         self.assertTrue(all(a.due <= b.due for a, b in zip(units, units[1:])))
@@ -228,4 +231,4 @@ class SyllabusTest(unittest.TestCase):
         all_but_last = {u.id: 1.0 for u in units[:-1]}
         self.assertEqual(self.s.summary("GAL1", all_but_last, date(2026, 11, 20))["status"], "ahead")
         self.assertEqual(self.s.summary("GAL1", {u.id: 1.0 for u in units}, date(2026, 11, 20))["status"], "done")
-        self.assertEqual(self.s.summary("GAL1", {}, date(2026, 11, 16))["status"], "on_track")
+        self.assertEqual(self.s.summary("GAL1", {}, date(2026, 11, 17))["status"], "on_track")

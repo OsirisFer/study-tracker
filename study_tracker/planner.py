@@ -42,7 +42,7 @@ class Planner:
     def targets(self, day: date) -> dict[str, float]:
         """Horas objetivo por materia, escalando el reparto de la fase al total del día."""
         phase = self.phase_for(day)
-        if not phase:
+        if not phase or day < self.start_date:  # antes del inicio: día libre, sin metas
             return {}
         split = phase["split"]
         total = sum(split.values())

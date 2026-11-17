@@ -10,6 +10,7 @@ Estados:
 """
 import time
 from dataclasses import dataclass
+from datetime import timedelta
 
 from . import camera_monitor as cam
 from .classifier import AWAY, DISTRACTION, NEUTRAL, STUDY, Classification
@@ -107,7 +108,9 @@ class Engine:
         self.state_totals = self.storage.state_breakdown(day)
         self.targets = self.planner.targets(day)
         self.completed = {c for c, h in self.targets.items() if self.totals.get(c, 0) >= h * 3600}
-        self.selected = self.planner.next_subject(day, self.totals)
+        # en un día sin plan (antes del inicio) igual se cuenta, con la primera materia de mañana
+        self.selected = (self.planner.next_subject(day, self.totals)
+                         or next(iter(self.planner.targets(day + timedelta(days=1))), None))
         if announce and self.targets:
             plan = " · ".join(f"{self.planner.name(c)} {h:g}h" for c, h in self.targets.items())
             self.notify("☀️ Nuevo día de estudio", f"Hoy: {plan}")
