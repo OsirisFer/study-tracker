@@ -90,6 +90,9 @@ context_window_seconds: 300
 # Segundos de distracción seguida antes de avisarte con una notificación.
 distraction_notify_after: 15
 
+# Hora del resumen del día (notificación con horas, foco, mejor bloque, racha y plan de mañana).
+daily_summary_time: "22:30"
+
 camera:
   enabled: true
   device_index: 0

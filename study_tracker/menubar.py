@@ -6,6 +6,7 @@ import rumps
 
 from .config import EXTENSION_DIR
 from .engine import AWAY_STATE, BREAK, DISTRACTED, IDLE, PAUSED, STUDYING
+from .insights import mmss
 
 DOTS = {STUDYING: "🟢", DISTRACTED: "🔴", AWAY_STATE: "🟡", BREAK: "☕", PAUSED: "⏸", IDLE: "⚪"}
 
@@ -24,6 +25,7 @@ class MenuBarApp(rumps.App):
 
         self.status_item = rumps.MenuItem("…")
         self.day_item = rumps.MenuItem("…")
+        self.focus_item = rumps.MenuItem("…")
         self.goals_menu, self.goal_status_items, self.unit_items = self._build_goals_menu()
         self.subject_items = {
             code: rumps.MenuItem(code, callback=self._make_select(code))
@@ -33,7 +35,8 @@ class MenuBarApp(rumps.App):
         self.break_item = rumps.MenuItem("Tomar descanso ahora", callback=self.on_break)
         self.camera_item = rumps.MenuItem("Cámara", callback=self.on_camera)
         self.menu = [
-            self.status_item, self.day_item, None,
+            self.status_item, self.day_item, self.focus_item,
+            rumps.MenuItem("📊 Resumen de hoy", callback=self.on_summary), None,
             *self.subject_items.values(), None,
             self.goals_menu, None,
             self.pause_item, self.break_item, self.camera_item, None,
@@ -75,6 +78,15 @@ class MenuBarApp(rumps.App):
                     item.state = int(u["done"])
                     item.title = f"{u['name']}   ·  meta {u['due'][8:]}/{u['due'][5:7]}"
 
+    def refresh_focus(self):
+        ins = self.engine.insights()
+        t = ins["today"]
+        self.focus_item.title = (f"🔥 Racha {ins['streak']} · mejor bloque {t['best_block'] // 60} min · "
+                                 f"vuelta {mmss(t['recovery'])}")
+
+    def on_summary(self, _):
+        self.engine.send_summary()
+
     def _make_select(self, code):
         def select(_):
             self.engine.select(code)
@@ -86,6 +98,7 @@ class MenuBarApp(rumps.App):
         self.refresh()
         if self._ticks % 30 == 0:  # las metas cambian poco: no consultar la base cada segundo
             self.refresh_goals()
+            self.refresh_focus()
         self._ticks += 1
 
     def refresh(self):

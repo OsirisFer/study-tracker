@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 
 from . import camera_monitor as cam
+from . import insights
 from .classifier import AWAY, DISTRACTION, NEUTRAL, STUDY, Classification
 
 STUDYING, DISTRACTED, AWAY_STATE, BREAK, PAUSED, IDLE = (
@@ -84,6 +85,8 @@ class Engine:
         self.notify_after = cfg.get("distraction_notify_after", 15)
         self.idle_limit = cfg.get("idle_limit_seconds", 300)
         self.auto_switch = cfg.get("auto_switch_on_goal", True)
+        hh, mm = str(cfg.get("daily_summary_time", "22:30")).split(":")
+        self.summary_minute = int(hh) * 60 + int(mm)
 
         self.paused = False
         self.break_until: float | None = None
@@ -138,6 +141,32 @@ class Engine:
             if s:
                 self.notify(f"✅ {unit} completo", f"{s['name']}: {s['text']}")
 
+    # ── resumen del día ──────────────────────────────────────
+    def insights(self) -> dict:
+        return insights.build(self.planner, self.storage, self.day)
+
+    def _crossed_summary_time(self, prev: float, now: float) -> bool:
+        """True en el tick en que el reloj pasa la hora del resumen (solo si la app estaba abierta)."""
+        def minute(ts):
+            t = time.localtime(ts)
+            return t.tm_hour * 60 + t.tm_min
+        return now - prev < 60 and minute(prev) < self.summary_minute <= minute(now)
+
+    def summary(self) -> tuple[str, str]:
+        """(resumen de hoy, plan de mañana)."""
+        ins = self.insights()
+        today = insights.summary_text(ins, sum(self.totals.values()), sum(self.targets.values()))
+        tomorrow = self.planner.targets(self.day + timedelta(days=1))
+        nxt = {s["code"]: s["next"] for s in self.goal_summaries()}
+        plan = " · ".join(f"{self.planner.name(c)} {h:g}h" + (f" ({nxt[c]['id']})" if nxt.get(c) else "")
+                          for c, h in tomorrow.items())
+        return today, (f"Mañana: {plan}" if plan else "Mañana no hay plan")
+
+    def send_summary(self) -> None:
+        today, tomorrow = self.summary()
+        self.notify("📊 Resumen del día", today)
+        self.notify("📅 Mañana", tomorrow, sound=None)
+
     # ── acciones del menú ────────────────────────────────────
     def select(self, subject: str) -> None:
         self.selected = subject
@@ -157,7 +186,8 @@ class Engine:
     # ── tick ─────────────────────────────────────────────────
     def tick(self) -> Status:
         now = time.time()
-        dt = min(now - self.last_tick, MAX_TICK)
+        prev = self.last_tick
+        dt = min(now - prev, MAX_TICK)
         self.last_tick = now
 
         today = self.planner.study_day()
@@ -191,6 +221,8 @@ class Engine:
 
         self.state_totals[state] = self.state_totals.get(state, 0) + dt
         self.storage.record(self.day, now, dt, state, self.selected, reason)
+        if self._crossed_summary_time(prev, now):
+            self.send_summary()
         self.status = Status(state, reason, self.selected, app, title, camera_state, cls.subject,
                              max(0.0, (self.break_until or now) - now), self.focus_secs)
         return self.status

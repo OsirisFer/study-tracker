@@ -50,6 +50,7 @@ def build_stats(engine) -> dict:
                            "actual": round(actual.get(c, 0) / 3600, 1)} for c in planner.subjects},
         "exams": [{"code": c, "name": names.get(c, c), "date": d.isoformat(), "days_left": n}
                   for c, d, n in planner.upcoming_exams(day)],
+        "insights": engine.insights(),
         "distractions": [{"reason": r, "minutes": round(s / 60, 1), "times": n}
                          for r, s, n in storage.top_distractions(day - timedelta(days=6))],
     }

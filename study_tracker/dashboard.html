@@ -76,6 +76,16 @@
   .unit.now .due { color: var(--text); font-weight: 600; }
   .unit.done label { color: var(--muted); text-decoration: line-through; }
   details summary { cursor: pointer; color: var(--muted); font-size: 13px; margin-top: 6px; }
+  .tiles { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  .tile { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+  .tile .k { font-size: 13px; color: var(--muted); }
+  .tile .v { font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .tile .s { font-size: 13px; color: var(--muted); }
+  .insight { margin: 14px 0 0; padding: 0; list-style: none; }
+  .insight li { padding: 4px 0; }
+  .two { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); margin-top: 14px; }
+  .two h3 { font-size: 14px; margin: 0 0 8px; font-weight: 600; }
+  .two .chart { height: 220px; }
   button { font: inherit; padding: 6px 14px; border-radius: 8px; border: 1px solid var(--line);
            background: var(--bg); color: var(--text); cursor: pointer; }
 </style>
@@ -110,6 +120,19 @@
     </section>
     <section class="card"><h2>Exámenes</h2><div class="exams" id="exams"></div></section>
 
+    <section class="card wide"><h2>Patrones de foco</h2>
+      <div class="tiles" id="tiles"></div>
+      <ul class="insight" id="insight"></ul>
+      <div class="two">
+        <div><h3>% del tiempo distraído según la hora (últimos 7 días)</h3>
+          <div class="chart"><canvas id="hourchart" aria-label="Porcentaje distraído por hora del día" role="img"></canvas></div></div>
+        <div><h3>Tiempo de vuelta por día (mediana)</h3>
+          <div class="chart"><canvas id="recchart" aria-label="Tiempo de vuelta por día" role="img"></canvas></div></div>
+      </div>
+      <p class="meta">Tiempo de vuelta = cuánto tardás desde que te distraés hasta volver a estudiar. Bloque = estudio seguido
+        (cortes de menos de 1 min no lo cortan; el descanso sí). Racha = días seguidos cumpliendo las horas del plan.</p>
+    </section>
+
     <section class="card wide"><h2>Metas por práctico</h2>
       <p class="meta">Los temas se reparten en tus horas de estudio según cuánto les dedica el curso (hoja de ruta del EVA).
         Marcá cada práctico cuando lo termines.</p>
@@ -140,6 +163,7 @@ const color = i => css(["--s1", "--s2", "--s3"][i % 3]);
 const hm = h => { const m = Math.round(h * 60); return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`; };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 let chart, codes = [];
+Chart.defaults.color = css("--muted");
 
 async function refreshStatus() {
   try {
@@ -254,6 +278,8 @@ async function refreshStats() {
       <td class="num">${actual}h</td><td class="num" style="color:${css(diff >= 0 ? "--study" : "--distracted")}">${diff >= 0 ? "+" : ""}${diff.toFixed(1)}h</td></tr>`;
   }).join("");
 
+  renderInsights(d.insights);
+
   document.getElementById("distractions").innerHTML = d.distractions.map(x =>
     `<tr><td>${esc(x.reason)}</td><td class="num">${x.minutes}</td><td class="num">${x.times}</td></tr>`).join("")
     || "<tr><td colspan='3' class='meta'>Sin distracciones registradas 💪</td></tr>";
@@ -265,12 +291,60 @@ async function refreshStats() {
   datasets.push({ type: "line", label: "Objetivo", data: d.history.map(h => Object.values(h.target).reduce((a, b) => a + b, 0)),
     borderColor: css("--muted"), borderDash: [6, 4], pointRadius: 0, fill: false });
   if (chart) { chart.data.labels = labels; chart.data.datasets = datasets; chart.update(); return; }
-  Chart.defaults.color = css("--muted");
   chart = new Chart(document.getElementById("history"), {
     type: "bar", data: { labels, datasets },
     options: { maintainAspectRatio: false, scales: { x: { stacked: true, grid: { display: false } },
       y: { stacked: true, beginAtZero: true, title: { display: true, text: "horas" }, grid: { color: css("--line") } } } },
   });
+}
+
+const mmss = s => s == null ? "—" : `${Math.floor(s / 60)}:${String(Math.round(s) % 60).padStart(2, "0")}`;
+const mins = s => `${Math.floor(s / 60)} min`;
+let hourChart, recChart;
+function renderInsights(ins) {
+  const t = ins.today, before = ins.recovery_before;
+  const trend = t.recovery == null || before == null ? "" :
+    t.recovery < before ? `↓ mejor que antes (${mmss(before)})` : t.recovery > before ? `↑ días anteriores: ${mmss(before)}` : "igual que antes";
+  const tile = (k, v, s) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`;
+  document.getElementById("tiles").innerHTML = [
+    tile("🔥 Racha", `${ins.streak} ${ins.streak === 1 ? "día" : "días"}`, `mejor: ${ins.best_streak}`),
+    tile("Mejor bloque hoy", mins(t.best_block), `récord: ${mins(ins.best_block_record)}`),
+    tile("Distracciones hoy", t.episodes, t.focus == null ? "foco —" : `foco ${t.focus}%`),
+    tile("Tiempo de vuelta hoy", mmss(t.recovery), trend || "mediana"),
+  ].join("");
+
+  const tips = [];
+  if (ins.worst_hour) tips.push(`⏰ Te distraés más entre las ${ins.worst_hour.hour} y las ${(ins.worst_hour.hour + 1) % 24} h
+    (${ins.worst_hour.pct}% del tiempo). Buena hora para un descanso o para algo más activo.`);
+  const best = ins.hours.filter(h => h.study_min + h.dist_min >= 30).sort((a, b) => a.pct - b.pct)[0];
+  if (best && ins.worst_hour && best.hour !== ins.worst_hour.hour)
+    tips.push(`✅ Tu mejor hora es entre las ${best.hour} y las ${(best.hour + 1) % 24} h (${best.pct}% distraído): guardala para lo más difícil.`);
+  document.getElementById("insight").innerHTML = tips.map(x => `<li>${x}</li>`).join("")
+    || "<li class='meta'>Con un par de días de datos aparecen tus patrones.</li>";
+
+  const grid = { color: css("--line") };
+  const hours = ins.hours;
+  const hourData = { labels: hours.map(h => `${h.hour} h`),
+    datasets: [{ label: "% distraído", data: hours.map(h => h.pct), backgroundColor: css("--distracted"), borderRadius: 4 }] };
+  const days = ins.days;
+  const recData = { labels: days.map(d => fmt(d.day)),
+    datasets: [{ label: "Tiempo de vuelta", data: days.map(d => d.recovery == null ? null : d.recovery / 60),
+                 backgroundColor: css("--break"), borderRadius: 4 }] };
+  if (hourChart) {
+    hourChart.data = hourData; hourChart.$hours = hours; hourChart.update("none");
+    recChart.data = recData; recChart.$days = days; recChart.update("none");
+    return;
+  }
+  hourChart = new Chart(document.getElementById("hourchart"), { type: "bar", data: hourData,
+    options: { maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: {
+        label: c => { const h = hourChart.$hours[c.dataIndex]; return ` ${h.pct}% distraído · ${h.study_min} min estudio, ${h.dist_min} min distraído`; } } } },
+      scales: { x: { grid: { display: false } }, y: { beginAtZero: true, max: 100, grid, ticks: { callback: v => v + "%" } } } } });
+  hourChart.$hours = hours;
+  recChart = new Chart(document.getElementById("recchart"), { type: "bar", data: recData,
+    options: { maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: {
+        label: c => { const d = recChart.$days[c.dataIndex]; return ` ${mmss(d.recovery)} · ${d.episodes} distracciones`; } } } },
+      scales: { x: { grid: { display: false } }, y: { beginAtZero: true, grid, title: { display: true, text: "minutos" } } } } });
+  recChart.$days = days;
 }
 
 // Cámara: poner src abre el stream MJPEG; quitarlo corta la conexión y la app deja de generar imágenes

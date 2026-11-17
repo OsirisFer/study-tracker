@@ -93,6 +93,15 @@ Marcás cada práctico cuando lo terminás, desde el panel (casillas) o desde el
 
 La barra de cada materia muestra lo que completaste y una marca con lo que el plan espera al terminar el día de hoy.
 
+## Patrones de foco
+
+En el panel (y un resumen en el menú):
+- **Tiempo de vuelta**: cuánto tardás desde que te distraés hasta volver a estudiar (mediana del día) y si mejora respecto a días anteriores. Si en el medio te levantaste o tomaste un descanso, no cuenta.
+- **% distraído por hora** (últimos 7 días): a qué hora te cuesta más y cuál es tu mejor hora.
+- **Mejor bloque**: el estudio seguido más largo del día (cortes de menos de 1 min no lo cortan; el descanso sí) y tu récord.
+- **Racha**: días seguidos cumpliendo las horas del plan. Hoy no la corta mientras el día no terminó.
+- **Resumen del día**: a las 22:30 (`daily_summary_time`) te llega una notificación con horas, foco, mejor bloque, distracciones, racha y qué toca mañana. También desde el menú: *📊 Resumen de hoy*.
+
 ## Estructura
 
 ```
@@ -104,6 +113,7 @@ study_tracker/
   camera_monitor.py  MediaPipe: presencia, orientación de cabeza, celular
   engine.py          máquina de estados, conteo, pomodoro, avisos
   storage.py         SQLite (data/study.db): tiempo por estado y prácticos completados
+  insights.py        patrones de foco: tiempo de vuelta, horas, mejor bloque, racha, resumen
   syllabus.py        metas por práctico (fechas y estado atrasado/al día/adelantado)
   server.py          servidor local: extensión + panel + API
   dashboard.html     panel de estadísticas

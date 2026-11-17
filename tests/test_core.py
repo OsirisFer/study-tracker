@@ -204,10 +204,6 @@ class EngineTest(unittest.TestCase):
         self.assertAlmostEqual(self.storage.totals_for_day(date(2026, 11, 17))["GAL1"], 10)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class SyllabusTest(unittest.TestCase):
     def setUp(self):
         from study_tracker.syllabus import Syllabus
@@ -232,3 +228,52 @@ class SyllabusTest(unittest.TestCase):
         self.assertEqual(self.s.summary("GAL1", all_but_last, date(2026, 11, 20))["status"], "ahead")
         self.assertEqual(self.s.summary("GAL1", {u.id: 1.0 for u in units}, date(2026, 11, 20))["status"], "done")
         self.assertEqual(self.s.summary("GAL1", {}, date(2026, 11, 17))["status"], "on_track")
+
+
+class InsightsTest(unittest.TestCase):
+    @staticmethod
+    def segs(*parts, t0=1_800_000_000.0):
+        """Arma segmentos seguidos a partir de (estado, segundos)."""
+        out, t = [], t0
+        for state, secs in parts:
+            out.append((t, t + secs, secs, state))
+            t += secs
+        return out
+
+    def test_episodes_only_count_returns_to_study(self):
+        from study_tracker.insights import episodes
+        segs = self.segs((STUDYING, 600), (DISTRACTED, 90), (DISTRACTED, 30), (STUDYING, 300),
+                         (DISTRACTED, 2), (STUDYING, 100),        # muy corta: ruido
+                         (DISTRACTED, 60), (AWAY_STATE, 600), (STUDYING, 100),  # se fue: no cuenta
+                         (DISTRACTED, 40), (BREAK, 600))           # terminó en descanso
+        self.assertEqual([d for _, d in episodes(segs)], [120])
+
+    def test_best_block_tolerates_short_cuts(self):
+        from study_tracker.insights import best_block
+        segs = self.segs((STUDYING, 1200), (DISTRACTED, 30), (STUDYING, 600),   # 30 s no corta
+                         (DISTRACTED, 120), (STUDYING, 900),                      # 2 min sí
+                         (BREAK, 600), (STUDYING, 300))
+        self.assertEqual(best_block(segs), 1800)
+
+    def test_by_hour_splits_segments(self):
+        from datetime import datetime
+        from study_tracker.insights import by_hour
+        t0 = datetime(2026, 11, 17, 21, 30).timestamp()
+        study, dist = by_hour(self.segs((STUDYING, 3600), (DISTRACTED, 600), t0=t0))
+        self.assertAlmostEqual(study[21], 1800)
+        self.assertAlmostEqual(study[22], 1800)
+        self.assertAlmostEqual(dist[22], 600)
+
+    def test_streaks(self):
+        from study_tracker.insights import streaks
+        p = Planner(CFG)
+        full = lambda d: sum(p.targets(d).values()) * 3600
+        d = [date(2026, 11, 17 + i) for i in range(5)]
+        studied = {d[0]: full(d[0]), d[1]: 100, d[2]: full(d[2]), d[3]: full(d[3])}
+        self.assertEqual(streaks(studied, p, d[4]), (2, 2))   # hoy (d4) sin cumplir no corta
+        studied[d[4]] = full(d[4])
+        self.assertEqual(streaks(studied, p, d[4]), (3, 3))
+
+
+if __name__ == "__main__":
+    unittest.main()
