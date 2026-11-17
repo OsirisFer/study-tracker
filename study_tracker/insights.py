@@ -97,6 +97,53 @@ def focus_pct(segs) -> int | None:
     return round(study / (study + dist) * 100) if study + dist else None
 
 
+def day_metrics(d: date, segs) -> dict:
+    eps = [secs for _, secs in episodes(segs)]
+    return {"day": d.isoformat(), "episodes": len(eps),
+            "recovery": round(median(eps)) if eps else None,
+            "best_block": round(best_block(segs)), "focus": focus_pct(segs),
+            "distracted": round(sum(x[2] for x in segs if x[3] == DISTRACTED)),
+            "away": round(sum(x[2] for x in segs if x[3] == AWAY))}
+
+
+def history(planner, storage, day: date) -> dict:
+    """Un renglón por día desde el inicio del plan: cuánto estudiaste, contra el objetivo,
+    y el balance acumulado (+ adelantado / − atrasado). Hoy no entra al balance hasta que termine."""
+    start = min(planner.start_date, day)
+    per_day = defaultdict(list)
+    for d, s_, e, secs, state in storage.segments(start, day):
+        per_day[d].append((s_, e, secs, state))
+    by_subject: dict[str, dict[str, float]] = defaultdict(dict)
+    for d, subj, secs in storage.daily_totals(start):
+        if subj:
+            by_subject[d][subj] = secs
+
+    rows, balance, met, planned_days, cursor = [], 0.0, 0, 0, start
+    while cursor <= day:
+        iso = cursor.isoformat()
+        targets = planner.targets(cursor)
+        target, studied = sum(targets.values()) * 3600, sum(by_subject[iso].values())
+        row = day_metrics(cursor, per_day.get(iso, []))
+        if cursor < day and target:
+            balance += studied - target
+            planned_days += 1
+            met += studied >= target
+        row.update(target=round(target), studied=round(studied), targets=targets,
+                   subjects={c: round(v) for c, v in by_subject[iso].items()},
+                   pct=round(studied / target * 100) if target else None,
+                   balance=round(balance), today=cursor == day)
+        rows.append(row)
+        cursor += timedelta(days=1)
+
+    past = [r for r in rows if not r["today"] and r["target"]]
+    focus = [r["focus"] for r in past if r["focus"] is not None]
+    return {
+        "rows": rows, "balance": round(balance), "met": met, "planned_days": planned_days,
+        "avg_studied": round(sum(r["studied"] for r in past) / len(past)) if past else None,
+        "avg_focus": round(sum(focus) / len(focus)) if focus else None,
+    }
+
+
 def build(planner, storage, day: date, days_back: int = 13) -> dict:
     """Todo lo que muestran el panel y el resumen del día."""
     since = min(day, max(planner.start_date, day - timedelta(days=days_back)))
@@ -106,11 +153,7 @@ def build(planner, storage, day: date, days_back: int = 13) -> dict:
 
     days, cursor = [], since
     while cursor <= day:
-        segs = per_day.get(cursor.isoformat(), [])
-        eps = [secs for _, secs in episodes(segs)]
-        days.append({"day": cursor.isoformat(), "episodes": len(eps),
-                     "recovery": round(median(eps)) if eps else None,
-                     "best_block": round(best_block(segs)), "focus": focus_pct(segs)})
+        days.append(day_metrics(cursor, per_day.get(cursor.isoformat(), [])))
         cursor += timedelta(days=1)
 
     week = [s for d, segs in per_day.items() if d >= (day - timedelta(days=6)).isoformat() for s in segs]

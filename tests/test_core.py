@@ -275,5 +275,19 @@ class InsightsTest(unittest.TestCase):
         self.assertEqual(streaks(studied, p, d[4]), (3, 3))
 
 
+    def test_history_balance_excludes_today(self):
+        from study_tracker.insights import history
+        p = Planner(CFG)
+        with tempfile.TemporaryDirectory() as tmp:
+            st = Storage(Path(tmp) / "t.db")
+            for d, hours in (("2026-11-17", 10.5), ("2026-11-18", 7), ("2026-11-19", 3)):
+                st.db.execute("INSERT INTO segments(day,start,end,seconds,state,subject,reason) "
+                              "VALUES (?,0,0,?,'STUDYING','GAL1','x')", (d, hours * 3600))
+            h = history(p, st, date(2026, 11, 19))
+        self.assertEqual(h["balance"], -2.5 * 3600)        # +0.5 − 3; el 19 (hoy) no cuenta
+        self.assertEqual((h["met"], h["planned_days"]), (1, 2))
+        self.assertTrue(h["rows"][-1]["today"])
+        self.assertEqual(h["rows"][1]["pct"], 70)
+
 if __name__ == "__main__":
     unittest.main()

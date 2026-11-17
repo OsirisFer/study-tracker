@@ -16,6 +16,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
+from . import insights
+
 DASHBOARD = Path(__file__).with_name("dashboard.html")
 
 
@@ -51,6 +53,7 @@ def build_stats(engine) -> dict:
         "exams": [{"code": c, "name": names.get(c, c), "date": d.isoformat(), "days_left": n}
                   for c, d, n in planner.upcoming_exams(day)],
         "insights": engine.insights(),
+        "log": insights.history(planner, storage, day),
         "distractions": [{"reason": r, "minutes": round(s / 60, 1), "times": n}
                          for r, s, n in storage.top_distractions(day - timedelta(days=6))],
     }

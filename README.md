@@ -102,6 +102,14 @@ En el panel (y un resumen en el menú):
 - **Racha**: días seguidos cumpliendo las horas del plan. Hoy no la corta mientras el día no terminó.
 - **Resumen del día**: a las 22:30 (`daily_summary_time`) te llega una notificación con horas, foco, mejor bloque, distracciones, racha y qué toca mañana. También desde el menú: *📊 Resumen de hoy*.
 
+## Historial
+
+En el panel, la tarjeta **Historial** muestra cómo venís con el plan:
+- **Balance**: horas estudiadas menos horas planeadas, acumulado desde el inicio (▲ adelantado / ▼ atrasado). Hoy entra cuando termina el día.
+- Días cumplidos, promedio de horas por día y foco promedio.
+- Gráfico de horas acumuladas reales contra el plan y % del objetivo cumplido cada día.
+- Una tabla con una fila por día: horas por materia, foco, distraído, ausente, mejor bloque, tiempo de vuelta y balance.
+
 ## Estructura
 
 ```

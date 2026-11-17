@@ -86,6 +86,14 @@
   .two { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); margin-top: 14px; }
   .two h3 { font-size: 14px; margin: 0 0 8px; font-weight: 600; }
   .two .chart { height: 220px; }
+  .scroll { overflow-x: auto; margin-top: 14px; }
+  .log { min-width: 820px; font-size: 14px; }
+  .log td, .log th { white-space: nowrap; padding: 8px 6px; }
+  .log tr.today td { background: var(--bg); }
+  .log .pctbar { display: inline-block; width: 60px; height: 8px; background: var(--line); border-radius: 4px;
+                 overflow: hidden; vertical-align: middle; margin-left: 6px; }
+  .log .pctbar > i { display: block; height: 100%; background: var(--study); border-radius: 4px; }
+  .up { color: var(--study); } .down { color: var(--distracted); }
   button { font: inherit; padding: 6px 14px; border-radius: 8px; border: 1px solid var(--line);
            background: var(--bg); color: var(--text); cursor: pointer; }
 </style>
@@ -141,6 +149,24 @@
       <div id="goals"></div></section>
 
     <section class="card wide"><h2>Horas por día</h2><div class="chart"><canvas id="history"></canvas></div></section>
+
+    <section class="card wide"><h2>Historial</h2>
+      <div class="tiles" id="logtiles"></div>
+      <div class="two">
+        <div><h3>Real vs. plan, acumulado</h3>
+          <p class="meta">Si la línea verde queda por debajo de la punteada, vas atrasado.</p>
+          <div class="chart"><canvas id="cumchart" aria-label="Horas acumuladas reales contra el plan" role="img"></canvas></div></div>
+        <div><h3>¿Cuánto rendiste cada día?</h3>
+          <p class="meta">% del objetivo del día cumplido. 100% = hiciste todas las horas.</p>
+          <div class="chart"><canvas id="pctchart" aria-label="Porcentaje del plan cumplido por día" role="img"></canvas></div></div>
+      </div>
+      <div class="scroll"><table class="log"><thead><tr>
+        <th>Día</th><th class="num">Estudiado</th><th>Del plan</th><th id="logsubj" hidden></th>
+        <th class="num">Foco</th><th class="num">Distraído</th><th class="num">Ausente</th>
+        <th class="num">Mejor bloque</th><th class="num">Vuelta</th><th class="num">Balance</th></tr></thead>
+        <tbody id="logrows"></tbody></table></div>
+      <p class="meta">Balance = horas estudiadas menos horas del plan, acumulado desde el inicio. El día de hoy entra cuando termina (a las 4 AM).</p>
+    </section>
 
     <section class="card"><h2>Plan vs. real (acumulado)</h2>
       <table><thead><tr><th>Materia</th><th class="num">Plan</th><th class="num">Real</th><th class="num">Dif.</th></tr></thead>
@@ -281,6 +307,7 @@ async function refreshStats() {
   }).join("");
 
   renderInsights(d.insights);
+  renderLog(d.log);
 
   document.getElementById("distractions").innerHTML = d.distractions.map(x =>
     `<tr><td>${esc(x.reason)}</td><td class="num">${x.minutes}</td><td class="num">${x.times}</td></tr>`).join("")
@@ -350,6 +377,61 @@ function renderInsights(ins) {
       scales: { x: { grid: { display: false }, title: { display: true, text: "día" } },
         y: { beginAtZero: true, grid, ticks: { callback: v => mmss(v * 60) } } } } });
   recChart.$days = days;
+}
+
+const hms = s => { const m = Math.round(Math.abs(s) / 60); return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`; };
+const signed = s => s === 0 ? "0:00" : `${s > 0 ? "+" : "−"}${hms(s)}`;
+const DOW = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
+const dayLabel = iso => `${DOW[new Date(iso + "T12:00").getDay()]} ${fmt(iso)}`;
+let cumChart, pctChart;
+function renderLog(log) {
+  const b = log.balance;
+  const state = log.planned_days === 0 ? ["", "todavía no terminó ningún día"]
+    : b >= 0 ? ["up", `▲ adelantado`] : ["down", `▼ atrasado`];
+  const tile = (k, v, sub) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${sub}</div></div>`;
+  const avgTarget = log.rows.filter(r => !r.today && r.target).reduce((a, r, _, arr) => a + r.target / arr.length, 0);
+  document.getElementById("logtiles").innerHTML = [
+    tile("Balance con el plan", signed(b) + " h", `<span class="${state[0]}">${state[1]}</span>`),
+    tile("Días cumplidos", `${log.met}/${log.planned_days}`, "días con todas las horas"),
+    tile("Promedio por día", log.avg_studied == null ? "—" : hms(log.avg_studied), avgTarget ? `de ${hms(avgTarget)} planeadas` : "aún sin días completos"),
+    tile("Foco promedio", log.avg_focus == null ? "—" : log.avg_focus + "%", "estudiado ÷ (estudiado + distraído)"),
+  ].join("");
+
+  const sh = document.getElementById("logsubj");
+  if (sh.hidden) sh.outerHTML = codes.map(c => `<th class="num" title="${esc(names[c])}">${emojis[c]} ${esc(names[c]).split(" ")[0]}</th>`).join("");
+  document.getElementById("logrows").innerHTML = [...log.rows].reverse().map(r => {
+    const subj = codes.map(c => `<td class="num">${r.targets[c] || r.subjects[c] ? hms(r.subjects[c] || 0) : "·"}</td>`).join("");
+    const pct = r.pct == null ? "sin plan" : `${r.pct}%<span class="pctbar"><i style="width:${Math.min(100, r.pct)}%"></i></span>`;
+    const bal = r.today ? "en curso" : `<span class="${r.balance >= 0 ? "up" : "down"}">${r.balance >= 0 ? "▲" : "▼"}</span> ${signed(r.balance)}`;
+    return `<tr class="${r.today ? "today" : ""}"><td>${r.today ? "<b>hoy</b> " + fmt(r.day) : dayLabel(r.day)}</td>
+      <td class="num">${hms(r.studied)}${r.target ? " / " + hms(r.target) : ""}</td><td>${pct}</td>
+      ${subj}
+      <td class="num">${r.focus == null ? "—" : r.focus + "%"}</td><td class="num">${hms(r.distracted)}</td>
+      <td class="num">${hms(r.away)}</td><td class="num">${mins(r.best_block)}</td>
+      <td class="num">${mmss(r.recovery)}</td><td class="num">${bal}</td></tr>`;
+  }).join("");
+
+  let plan = 0, real = 0;
+  const labels = log.rows.map(r => fmt(r.day));
+  const planned = log.rows.map(r => +((plan += r.target) / 3600).toFixed(2));
+  const actual = log.rows.map(r => +((real += r.studied) / 3600).toFixed(2));
+  const grid = { color: css("--line") };
+  const cumData = { labels, datasets: [
+    { label: "Plan", data: planned, borderColor: css("--muted"), borderDash: [6, 4], borderWidth: 2, pointRadius: 0, pointHitRadius: 10 },
+    { label: "Real", data: actual, borderColor: css("--study"), backgroundColor: css("--study"), borderWidth: 2, pointRadius: 4, pointHitRadius: 10 }] };
+  const pctData = { labels, datasets: [{ label: "% del plan", data: log.rows.map(r => r.pct),
+    backgroundColor: log.rows.map(r => css(r.pct >= 100 ? "--study" : "--break")), borderRadius: 4, maxBarThickness: 48 }] };
+  if (cumChart) {
+    cumChart.data = cumData; cumChart.update("none"); pctChart.data = pctData; pctChart.update("none"); return;
+  }
+  cumChart = new Chart(document.getElementById("cumchart"), { type: "line", data: cumData,
+    options: { maintainAspectRatio: false, interaction: { mode: "index", intersect: false },
+      plugins: { tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${hm(c.raw)} h` } } },
+      scales: { x: { grid: { display: false } }, y: { beginAtZero: true, grid, title: { display: true, text: "horas" } } } } });
+  pctChart = new Chart(document.getElementById("pctchart"), { type: "bar", data: pctData,
+    options: { maintainAspectRatio: false, plugins: { legend: { display: false },
+        tooltip: { callbacks: { label: c => c.raw == null ? " sin plan" : ` ${c.raw}% del plan` } } },
+      scales: { x: { grid: { display: false } }, y: { beginAtZero: true, suggestedMax: 100, grid, ticks: { callback: v => v + "%" } } } } });
 }
 
 // Cámara: poner src abre el stream MJPEG; quitarlo corta la conexión y la app deja de generar imágenes
