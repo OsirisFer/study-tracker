@@ -124,9 +124,11 @@
       <div class="tiles" id="tiles"></div>
       <ul class="insight" id="insight"></ul>
       <div class="two">
-        <div><h3>% del tiempo distraído según la hora (últimos 7 días)</h3>
+        <div><h3>¿A qué hora del día te distraés más?</h3>
+          <p class="meta">Junta los últimos 7 días: cada barra es una franja horaria (ej. 12:00 = de 12:00 a 13:00).</p>
           <div class="chart"><canvas id="hourchart" aria-label="Porcentaje distraído por hora del día" role="img"></canvas></div></div>
-        <div><h3>Tiempo de vuelta por día (mediana)</h3>
+        <div><h3>¿Cuánto tardás en volver a estudiar?</h3>
+          <p class="meta">Mediana de cada día: desde que te distraés hasta que volvés al material (minutos:segundos).</p>
           <div class="chart"><canvas id="recchart" aria-label="Tiempo de vuelta por día" role="img"></canvas></div></div>
       </div>
       <p class="meta">Tiempo de vuelta = cuánto tardás desde que te distraés hasta volver a estudiar. Bloque = estudio seguido
@@ -302,6 +304,7 @@ const mmss = s => s == null ? "—" : `${Math.floor(s / 60)}:${String(Math.round
 const mins = s => `${Math.floor(s / 60)} min`;
 let hourChart, recChart;
 function renderInsights(ins) {
+  const hhmm = h => `${String(h % 24).padStart(2, "0")}:00`;
   const t = ins.today, before = ins.recovery_before;
   const trend = t.recovery == null || before == null ? "" :
     t.recovery < before ? `↓ mejor que antes (${mmss(before)})` : t.recovery > before ? `↑ días anteriores: ${mmss(before)}` : "igual que antes";
@@ -314,17 +317,17 @@ function renderInsights(ins) {
   ].join("");
 
   const tips = [];
-  if (ins.worst_hour) tips.push(`⏰ Te distraés más entre las ${ins.worst_hour.hour} y las ${(ins.worst_hour.hour + 1) % 24} h
+  if (ins.worst_hour) tips.push(`⏰ Te distraés más de ${hhmm(ins.worst_hour.hour)} a ${hhmm(ins.worst_hour.hour + 1)}
     (${ins.worst_hour.pct}% del tiempo). Buena hora para un descanso o para algo más activo.`);
   const best = ins.hours.filter(h => h.study_min + h.dist_min >= 30).sort((a, b) => a.pct - b.pct)[0];
   if (best && ins.worst_hour && best.hour !== ins.worst_hour.hour)
-    tips.push(`✅ Tu mejor hora es entre las ${best.hour} y las ${(best.hour + 1) % 24} h (${best.pct}% distraído): guardala para lo más difícil.`);
+    tips.push(`✅ Tu mejor franja es de ${hhmm(best.hour)} a ${hhmm(best.hour + 1)} (${best.pct}% distraído): guardala para lo más difícil.`);
   document.getElementById("insight").innerHTML = tips.map(x => `<li>${x}</li>`).join("")
     || "<li class='meta'>Con un par de días de datos aparecen tus patrones.</li>";
 
   const grid = { color: css("--line") };
   const hours = ins.hours;
-  const hourData = { labels: hours.map(h => `${h.hour} h`),
+  const hourData = { labels: hours.map(h => hhmm(h.hour)),
     datasets: [{ label: "% distraído", data: hours.map(h => h.pct), backgroundColor: css("--distracted"), borderRadius: 4 }] };
   const days = ins.days;
   const recData = { labels: days.map(d => fmt(d.day)),
@@ -337,13 +340,15 @@ function renderInsights(ins) {
   }
   hourChart = new Chart(document.getElementById("hourchart"), { type: "bar", data: hourData,
     options: { maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: {
+        title: c => { const h = hourChart.$hours[c[0].dataIndex].hour; return `De ${hhmm(h)} a ${hhmm(h + 1)}`; },
         label: c => { const h = hourChart.$hours[c.dataIndex]; return ` ${h.pct}% distraído · ${h.study_min} min estudio, ${h.dist_min} min distraído`; } } } },
-      scales: { x: { grid: { display: false } }, y: { beginAtZero: true, max: 100, grid, ticks: { callback: v => v + "%" } } } } });
+      scales: { x: { grid: { display: false }, title: { display: true, text: "hora del día" } }, y: { beginAtZero: true, max: 100, grid, ticks: { callback: v => v + "%" } } } } });
   hourChart.$hours = hours;
   recChart = new Chart(document.getElementById("recchart"), { type: "bar", data: recData,
     options: { maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: {
         label: c => { const d = recChart.$days[c.dataIndex]; return ` ${mmss(d.recovery)} · ${d.episodes} distracciones`; } } } },
-      scales: { x: { grid: { display: false } }, y: { beginAtZero: true, grid, title: { display: true, text: "minutos" } } } } });
+      scales: { x: { grid: { display: false }, title: { display: true, text: "día" } },
+        y: { beginAtZero: true, grid, ticks: { callback: v => mmss(v * 60) } } } } });
   recChart.$days = days;
 }
 
