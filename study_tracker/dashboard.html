@@ -286,7 +286,7 @@ async function refreshStats() {
 
   const labels = d.history.map(h => h.day.slice(8) + "/" + h.day.slice(5, 7));
   const datasets = codes.map((c, i) => ({
-    label: names[c], data: d.history.map(h => h.hours[c] || 0), backgroundColor: color(i), stack: "real", maxBarThickness: 56,
+    label: names[c], data: d.history.map(h => h.hours[c] || 0), backgroundColor: color(i), stack: "real",
   }));
   datasets.push({ type: "line", label: "Objetivo", data: d.history.map(h => Object.values(h.target).reduce((a, b) => a + b, 0)),
     borderColor: css("--muted"), borderDash: [6, 4], pointRadius: 0, fill: false });

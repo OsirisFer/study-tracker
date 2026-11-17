@@ -96,10 +96,6 @@ class Storage:
         return self._query("SELECT day, start, end, seconds, state FROM segments "
                            "WHERE day>=? AND day<=? ORDER BY start", (since.isoformat(), until.isoformat()))
 
-    def first_day(self) -> date | None:
-        (d,), = self._query("SELECT MIN(day) FROM segments")
-        return date.fromisoformat(d) if d else None
-
     def top_distractions(self, since: date, limit: int = 10) -> list[tuple[str, float, int]]:
         return self._query("SELECT reason, SUM(seconds) AS s, COUNT(*) FROM segments "
                            "WHERE day>=? AND state='DISTRACTED' GROUP BY reason ORDER BY s DESC LIMIT ?",

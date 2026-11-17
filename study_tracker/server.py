@@ -23,12 +23,10 @@ def build_stats(engine) -> dict:
     planner, storage, day = engine.planner, engine.storage, engine.day
     names = {c: planner.name(c) for c in planner.subjects}
 
-    # desde el primer día con datos, aunque sea antes del inicio del plan (esos días no tienen objetivo)
-    first = min(planner.start_date, day, storage.first_day() or day)
     history = {}
-    for d, subj, secs in storage.daily_totals(first):
+    for d, subj, secs in storage.daily_totals(planner.start_date):
         history.setdefault(d, {})[subj] = round(secs / 3600, 2)
-    days, cursor = [], first
+    days, cursor = [], planner.start_date
     while cursor <= day:
         iso = cursor.isoformat()
         days.append({"day": iso, "hours": history.get(iso, {}),
