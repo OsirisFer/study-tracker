@@ -20,8 +20,8 @@ STUDYING, DISTRACTED, AWAY_STATE, BREAK, PAUSED, IDLE = (
     "STUDYING", "DISTRACTED", "AWAY", "BREAK", "PAUSED", "IDLE")
 
 MAX_TICK = 5.0              # si la compu se durmió, no sumar el hueco
-MISMATCH_AFTER = 60         # segundos con material de otra materia antes de avisar
-MISMATCH_REPEAT = 600
+MISMATCH_AFTER = 180        # segundos con material de otra materia antes de avisar
+MISMATCH_REPEAT = 1800
 
 
 def decide(cls: Classification, camera_state: str, *, context_recent: bool, paused: bool,
@@ -82,7 +82,8 @@ class Engine:
         self.focus_limit = pomo.get("focus_minutes", 50) * 60
         self.break_len = pomo.get("break_minutes", 10) * 60
         self.context_window = cfg.get("context_window_seconds", 300)
-        self.notify_after = cfg.get("distraction_notify_after", 15)
+        self.notify_after = cfg.get("distraction_notify_after", 60)
+        self.notify_repeat = cfg.get("distraction_notify_repeat", 600)
         self.idle_limit = cfg.get("idle_limit_seconds", 300)
         self.auto_switch = cfg.get("auto_switch_on_goal", True)
         hh, mm = str(cfg.get("daily_summary_time", "22:30")).split(":")
@@ -97,7 +98,6 @@ class Engine:
 
         self._distracted_since: float | None = None
         self._last_distraction_notice = 0.0
-        self._last_notice_reason = ""
         self._away_since: float | None = None
         self._mismatch_since: float | None = None
         self._last_mismatch_notice = 0.0
@@ -117,8 +117,6 @@ class Engine:
         if announce and self.targets:
             plan = " · ".join(f"{self.planner.name(c)} {h:g}h" for c, h in self.targets.items())
             self.notify("☀️ Nuevo día de estudio", f"Hoy: {plan}")
-            if goals := self.goals_text():
-                self.notify("🎯 Metas", goals)
 
     # ── metas por práctico ───────────────────────────────────
     def goal_summaries(self) -> list[dict]:
@@ -131,15 +129,8 @@ class Engine:
                 out.append(s)
         return out
 
-    def goals_text(self) -> str:
-        return " · ".join(f"{s['name']}: {s['text']}" for s in self.goal_summaries() if s["code"] in self.targets)
-
     def set_unit_done(self, subject: str, unit: str, done: bool) -> None:
         self.storage.set_progress(subject, unit, done)
-        if done and self.syllabus:
-            s = self.syllabus.summary(subject, self.storage.progress().get(subject, {}), self.day)
-            if s:
-                self.notify(f"✅ {unit} completo", f"{s['name']}: {s['text']}")
 
     # ── resumen del día ──────────────────────────────────────
     def insights(self) -> dict:
@@ -164,8 +155,7 @@ class Engine:
 
     def send_summary(self) -> None:
         today, tomorrow = self.summary()
-        self.notify("📊 Resumen del día", today)
-        self.notify("📅 Mañana", tomorrow, sound=None)
+        self.notify("📊 Resumen del día", f"{today}. {tomorrow}")
 
     # ── acciones del menú ────────────────────────────────────
     def select(self, subject: str) -> None:
@@ -256,12 +246,11 @@ class Engine:
             return
         if self._distracted_since is None:
             self._distracted_since = now
+        # un solo aviso por distracción larga, y como mucho uno cada `notify_repeat` segundos
         sustained = now - self._distracted_since >= self.notify_after
-        new_reason = reason != self._last_notice_reason
-        if sustained and (new_reason or now - self._last_distraction_notice > 300):
+        if sustained and now - self._last_distraction_notice > self.notify_repeat:
             self.notify("⏸ Tiempo pausado", reason, sound="Funk")
             self._last_distraction_notice = now
-            self._last_notice_reason = reason
 
     def _handle_away(self, state: str, now: float) -> None:
         # Una ausencia más larga que el descanso cuenta como descanso: se reinicia el pomodoro

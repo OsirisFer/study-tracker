@@ -58,9 +58,7 @@ def run_app(cfg: dict) -> None:
 
     if engine.targets:
         plan = " · ".join(f"{planner.name(c)} {h:g}h" for c, h in engine.targets.items())
-        notify("📚 Study Tracker", f"Hoy: {plan}. Arrancás con {planner.name(engine.selected)}.")
-        if goals := engine.goals_text():
-            notify("🎯 Metas", goals, sound=None)
+        notify("📚 Study Tracker", f"Hoy: {plan}. Arrancás con {planner.name(engine.selected)}.", sound=None)
     print(f"Study Tracker corriendo. Panel: http://127.0.0.1:{port}/")
     MenuBarApp(engine, port, camera).run()
 

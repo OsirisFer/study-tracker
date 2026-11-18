@@ -87,8 +87,10 @@ pomodoro:
 # (Finder, buscador, ChatGPT sin título aún...) sigue contando.
 context_window_seconds: 300
 
-# Segundos de distracción seguida antes de avisarte con una notificación.
-distraction_notify_after: 15
+# Segundos de distracción seguida antes de avisarte con una notificación,
+# y mínimo de segundos entre un aviso de distracción y el siguiente.
+distraction_notify_after: 60
+distraction_notify_repeat: 600
 
 # Hora del resumen del día (notificación con horas, foco, mejor bloque, racha y plan de mañana).
 daily_summary_time: "22:30"

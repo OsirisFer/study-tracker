@@ -190,7 +190,16 @@ class EngineTest(unittest.TestCase):
         self.run_secs(20)
         self.assertEqual(self.engine.totals.get("GAL1", 0), 0)
         self.assertAlmostEqual(self.engine.state_totals[DISTRACTED], 20)  # se suma el tiempo distraído
-        self.assertTrue(any("pausado" in n for n in self.notes))
+        self.assertFalse(any("pausado" in n for n in self.notes))         # todavía no avisa
+        self.run_secs(50)
+        self.assertEqual(sum("pausado" in n for n in self.notes), 1)
+
+    def test_distraction_notice_not_repeated(self):
+        self.camera.status = cam.CameraStatus(state=cam.PHONE)
+        self.run_secs(70)
+        self.camera.status = cam.CameraStatus(state=cam.LOOKING_AWAY)  # otro motivo: no vuelve a avisar
+        self.run_secs(120)
+        self.assertEqual(sum("pausado" in n for n in self.notes), 1)
 
     def test_goal_switches_subject(self):
         self.engine.pomodoro = False
